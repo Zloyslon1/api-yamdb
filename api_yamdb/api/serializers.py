@@ -1,7 +1,7 @@
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from rest_framework import serializers
 
-from reviews.models import Category, Genre, Title, User
+from reviews.models import Category, Comment, Genre, Review, Title, User
 
 USERNAME_MAX_LENGTH = 150
 EMAIL_MAX_LENGTH = 254
@@ -131,3 +131,42 @@ class TitleWriteSerializer(serializers.ModelSerializer):
         model = Title
         fields = ('id', 'name', 'year', 'description', 'genre', 'category')
         read_only_fields = ('id',)
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    """Сериализатор отзыва. Автор подставляется автоматически."""
+
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True,
+    )
+
+    class Meta:
+        model = Review
+        fields = ('id', 'text', 'author', 'score', 'pub_date')
+
+    def validate(self, data):
+        """На POST запретить второй отзыв того же автора."""
+        request = self.context['request']
+        if request.method != 'POST':
+            return data
+        title_id = self.context['view'].kwargs['title_id']
+        if Review.objects.filter(
+                title_id=title_id, author=request.user).exists():
+            raise serializers.ValidationError(
+                'Можно оставить только один отзыв на произведение.'
+            )
+        return data
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    """Сериализатор комментария. Автор подставляется автоматически."""
+
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True,
+    )
+
+    class Meta:
+        model = Comment
+        fields = ('id', 'text', 'author', 'pub_date')

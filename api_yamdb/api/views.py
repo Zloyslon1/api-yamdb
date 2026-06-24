@@ -16,14 +16,16 @@ from api.serializers import (
     TokenSerializer,
     UserSerializer,
 )
-from .permissions import IsAdminOrReadOnly
+from .permissions import IsAdminOrReadOnly, IsAuthorOrModeratorOrAdmin
 from .serializers import (
     CategorySerializer,
+    CommentSerializer,
     GenreSerializer,
+    ReviewSerializer,
     TitleReadSerializer,
     TitleWriteSerializer,
 )
-from reviews.models import Category, Genre, Title, User
+from reviews.models import Category, Genre, Review, Title, User
 
 EMAIL_SUBJECT = 'Код подтверждения YaMDb'
 
@@ -156,3 +158,41 @@ class TitleViewSet(viewsets.ModelViewSet):
             if value:
                 queryset = queryset.filter(**{lookup: value})
         return queryset.distinct()
+
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    """ViewSet отзывов к произведению (вложен в /titles/)."""
+
+    serializer_class = ReviewSerializer
+    permission_classes = (IsAuthorOrModeratorOrAdmin,)
+    http_method_names = ('get', 'post', 'patch', 'delete')
+
+    def get_title(self):
+        return get_object_or_404(Title, pk=self.kwargs['title_id'])
+
+    def get_queryset(self):
+        return self.get_title().reviews.all()
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user, title=self.get_title())
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    """ViewSet комментариев к отзыву (вложен в /reviews/)."""
+
+    serializer_class = CommentSerializer
+    permission_classes = (IsAuthorOrModeratorOrAdmin,)
+    http_method_names = ('get', 'post', 'patch', 'delete')
+
+    def get_review(self):
+        return get_object_or_404(
+            Review,
+            pk=self.kwargs['review_id'],
+            title_id=self.kwargs['title_id'],
+        )
+
+    def get_queryset(self):
+        return self.get_review().comments.all()
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user, review=self.get_review())
