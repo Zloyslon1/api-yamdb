@@ -124,6 +124,8 @@ class TitleViewSet(viewsets.ModelViewSet):
         return TitleWriteSerializer
 
     def get_queryset(self):
+        # TODO(Ваня): убрать try/except после появления
+        # модели Review.
         try:
             queryset = Title.objects.annotate(rating=Avg('reviews__score'))
         except FieldError:
