@@ -1,5 +1,4 @@
 from django.contrib.auth.tokens import default_token_generator
-from django.core.exceptions import FieldError
 from django.core.mail import send_mail
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
@@ -140,13 +139,8 @@ class TitleViewSet(viewsets.ModelViewSet):
         return TitleWriteSerializer
 
     def get_queryset(self):
-        """Вернуть queryset с опциональным рейтингом и фильтрацией."""
-        # TODO(Ваня): убрать try/except после появления
-        # модели Review.
-        try:
-            queryset = Title.objects.annotate(rating=Avg('reviews__score'))
-        except FieldError:
-            queryset = Title.objects.all()
+        """Вернуть queryset с рейтингом и фильтрацией."""
+        queryset = Title.objects.annotate(rating=Avg('reviews__score'))
         filters = {
             'category': 'category__slug',
             'genre': 'genre__slug',
