@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import MaxValueValidator
 from django.db import models
 
 
@@ -41,3 +42,80 @@ class User(AbstractUser):
     @property
     def is_moderator(self):
         return self.role == self.MODERATOR
+
+
+class Category(models.Model):
+    name = models.CharField(
+        'Название',
+        max_length=256,
+    )
+    slug = models.SlugField(
+        'Slug',
+        max_length=50,
+        unique=True,
+    )
+
+    class Meta:
+        verbose_name = 'Категория'
+        verbose_name_plural = 'Категории'
+        ordering = ('name',)
+
+    def __str__(self):
+        return self.name
+
+
+class Genre(models.Model):
+    name = models.CharField(
+        'Название',
+        max_length=256,
+    )
+    slug = models.SlugField(
+        'Slug',
+        max_length=50,
+        unique=True,
+    )
+
+    class Meta:
+        verbose_name = 'Жанр'
+        verbose_name_plural = 'Жанры'
+        ordering = ('name',)
+
+    def __str__(self):
+        return self.name
+
+
+class Title(models.Model):
+    name = models.CharField(
+        'Название',
+        max_length=256,
+    )
+    year = models.IntegerField(
+        'Год выпуска',
+        validators=(
+            MaxValueValidator(2026),
+        ),
+    )
+    description = models.TextField(
+        'Описание',
+        blank=True,
+    )
+    category = models.ForeignKey(
+        Category,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='Категория',
+        related_name='titles',
+    )
+    genre = models.ManyToManyField(
+        Genre,
+        verbose_name='Жанр',
+    )
+
+    class Meta:
+        verbose_name = 'Произведение'
+        verbose_name_plural = 'Произведения'
+        ordering = ('-year', 'name')
+
+    def __str__(self):
+        return self.name
