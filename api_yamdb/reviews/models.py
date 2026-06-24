@@ -46,47 +46,50 @@ class User(AbstractUser):
         return self.role == self.MODERATOR
 
 
-class Category(models.Model):
-    name = models.CharField(
-        'Название',
-        max_length=256,
-    )
-    slug = models.SlugField(
-        'Slug',
-        max_length=50,
-        unique=True,
-    )
+class NameSlugModel(models.Model):
+    """Абстрактная модель с полями name и slug."""
+
+    name = models.CharField('Название', max_length=256)
+    slug = models.SlugField('Slug', max_length=50, unique=True)
 
     class Meta:
+        abstract = True
+        ordering = ('name',)
+
+    def __str__(self):
+        return self.name
+
+
+class Category(NameSlugModel):
+    """Модель категории произведения.
+
+    Каждое произведение относится ровно к одной категории.
+    """
+
+    class Meta(NameSlugModel.Meta):
         verbose_name = 'Категория'
         verbose_name_plural = 'Категории'
-        ordering = ('name',)
-
-    def __str__(self):
-        return self.name
 
 
-class Genre(models.Model):
-    name = models.CharField(
-        'Название',
-        max_length=256,
-    )
-    slug = models.SlugField(
-        'Slug',
-        max_length=50,
-        unique=True,
-    )
+class Genre(NameSlugModel):
+    """Модель жанра произведения.
 
-    class Meta:
+    Произведение может относиться к нескольким жанрам.
+    """
+
+    class Meta(NameSlugModel.Meta):
         verbose_name = 'Жанр'
         verbose_name_plural = 'Жанры'
-        ordering = ('name',)
-
-    def __str__(self):
-        return self.name
 
 
 class Title(models.Model):
+    """Модель произведения (фильмы, книги, музыка и т.д.).
+
+    Произведение относится к одной категории и может иметь
+    несколько жанров. Рейтинг вычисляется на лету аннотацией
+    среднего отзывов через reviews__score.
+    """
+
     name = models.CharField(
         'Название',
         max_length=256,

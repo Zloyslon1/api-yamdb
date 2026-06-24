@@ -29,6 +29,8 @@ EMAIL_SUBJECT = 'Код подтверждения YaMDb'
 
 
 class UserViewSet(viewsets.ModelViewSet):
+    """ViewSet для пользователей (только для админа)."""
+
     queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = (IsAdmin,)
@@ -89,41 +91,54 @@ def token(request):
     return Response({'token': str(access)}, status=status.HTTP_200_OK)
 
 
-class CategoryViewSet(mixins.ListModelMixin,
+class NameSlugViewSet(mixins.ListModelMixin,
                       mixins.CreateModelMixin,
                       mixins.DestroyModelMixin,
                       viewsets.GenericViewSet):
+    """Базовый ViewSet для моделей с name и slug.
+
+    Поиск по name. Идентификация по slug.
+    """
+
+    permission_classes = (IsAdminOrReadOnly,)
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('name',)
+    lookup_field = 'slug'
+
+
+class CategoryViewSet(NameSlugViewSet):
+    """ViewSet для категорий."""
+
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = (IsAdminOrReadOnly,)
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('name',)
-    lookup_field = 'slug'
 
 
-class GenreViewSet(mixins.ListModelMixin,
-                   mixins.CreateModelMixin,
-                   mixins.DestroyModelMixin,
-                   viewsets.GenericViewSet):
+class GenreViewSet(NameSlugViewSet):
+    """ViewSet для жанров."""
+
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
-    permission_classes = (IsAdminOrReadOnly,)
-    filter_backends = (filters.SearchFilter,)
-    search_fields = ('name',)
-    lookup_field = 'slug'
 
 
 class TitleViewSet(viewsets.ModelViewSet):
+    """ViewSet для произведений (read-write).
+
+    read  -> TitleReadSerializer   (вложенные объекты, рейтинг)
+    write -> TitleWriteSerializer  (slug'ы для категории/жанров)
+    """
+
     queryset = Title.objects.all()
     permission_classes = (IsAdminOrReadOnly,)
     http_method_names = ('get', 'post', 'patch', 'delete')
 
     def get_serializer_class(self):
+        """Вернуть сериализатор в зависимости от типа запроса."""
         if self.action in ('list', 'retrieve'):
             return TitleReadSerializer
         return TitleWriteSerializer
 
     def get_queryset(self):
+        """Вернуть queryset с опциональным рейтингом и фильтрацией."""
         # TODO(Ваня): убрать try/except после появления
         # модели Review.
         try:
