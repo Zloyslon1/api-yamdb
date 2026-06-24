@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator
 from django.db import models
@@ -92,7 +94,7 @@ class Title(models.Model):
     year = models.IntegerField(
         'Год выпуска',
         validators=(
-            MaxValueValidator(2026),
+            MaxValueValidator(date.today().year),
         ),
     )
     description = models.TextField(
