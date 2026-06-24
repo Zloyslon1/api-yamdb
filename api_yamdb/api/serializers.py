@@ -67,18 +67,34 @@ class TokenSerializer(serializers.Serializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    """Сериализатор категории.
+
+    Используется для list/create/destroy. Поля name и slug.
+    """
+
     class Meta:
         model = Category
         fields = ('name', 'slug')
 
 
 class GenreSerializer(serializers.ModelSerializer):
+    """Сериализатор жанра.
+
+    Используется для list/create/destroy. Поля name и slug.
+    """
+
     class Meta:
         model = Genre
         fields = ('name', 'slug')
 
 
 class TitleReadSerializer(serializers.ModelSerializer):
+    """Сериализатор для GET-запросов к произведениям.
+
+    Возвращает вложенные объекты категории и жанров,
+    а также аннотированный рейтинг.
+    """
+
     category = CategorySerializer()
     genre = GenreSerializer(many=True)
     rating = serializers.SerializerMethodField()
@@ -90,10 +106,17 @@ class TitleReadSerializer(serializers.ModelSerializer):
         )
 
     def get_rating(self, obj):
+        """Вернуть аннотированный рейтинг или None."""
         return getattr(obj, 'rating', None)
 
 
 class TitleWriteSerializer(serializers.ModelSerializer):
+    """Сериализатор для POST/PATCH-запросов к произведениям.
+
+    Принимает category и genre по slug. При успехе возвращает
+    полный объект, включая id.
+    """
+
     category = serializers.SlugRelatedField(
         slug_field='slug',
         queryset=Category.objects.all(),
