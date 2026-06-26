@@ -97,7 +97,7 @@ class Title(models.Model):
     year = models.IntegerField(
         'Год выпуска',
         validators=(
-            MaxValueValidator(date.today().year),
+                MaxValueValidator(lambda: date.today().year),
         ),
     )
     description = models.TextField(
