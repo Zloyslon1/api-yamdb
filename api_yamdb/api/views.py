@@ -21,8 +21,7 @@ from .serializers import (
     CommentSerializer,
     GenreSerializer,
     ReviewSerializer,
-    TitleReadSerializer,
-    TitleWriteSerializer,
+    TitleSerializer,
 )
 from reviews.models import Category, Genre, Review, Title, User
 
@@ -124,34 +123,30 @@ class GenreViewSet(NameSlugViewSet):
 class TitleViewSet(viewsets.ModelViewSet):
     """ViewSet для произведений (read-write).
 
-    read  -> TitleReadSerializer   (вложенные объекты, рейтинг)
-    write -> TitleWriteSerializer  (slug'ы для категории/жанров)
+    Сортировка по -year, name через OrderingFilter.
     """
 
-    queryset = Title.objects.all()
+    queryset = Title.objects.annotate(rating=Avg('reviews__score')).distinct()
+    serializer_class = TitleSerializer
     permission_classes = (IsAdminOrReadOnly,)
     http_method_names = ('get', 'post', 'patch', 'delete')
-
-    def get_serializer_class(self):
-        """Вернуть сериализатор в зависимости от типа запроса."""
-        if self.action in ('list', 'retrieve'):
-            return TitleReadSerializer
-        return TitleWriteSerializer
+    filter_backends = (filters.OrderingFilter,)
+    ordering = ('-year', 'name')
+    ordering_fields = ('year', 'name')
 
     def get_queryset(self):
-        """Вернуть queryset с рейтингом и фильтрацией."""
-        queryset = Title.objects.annotate(rating=Avg('reviews__score'))
-        filters = {
+        """Вернуть отфильтрованный queryset."""
+        queryset = self.queryset
+        for param, lookup in {
             'category': 'category__slug',
             'genre': 'genre__slug',
             'name': 'name__icontains',
             'year': 'year',
-        }
-        for param, lookup in filters.items():
+        }.items():
             value = self.request.query_params.get(param)
             if value:
                 queryset = queryset.filter(**{lookup: value})
-        return queryset.distinct()
+        return queryset
 
 
 class ReviewViewSet(viewsets.ModelViewSet):

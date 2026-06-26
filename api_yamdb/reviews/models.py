@@ -69,6 +69,7 @@ class Category(NameSlugModel):
     class Meta(NameSlugModel.Meta):
         verbose_name = 'Категория'
         verbose_name_plural = 'Категории'
+        default_related_name = 'titles'
 
 
 class Genre(NameSlugModel):
@@ -80,6 +81,7 @@ class Genre(NameSlugModel):
     class Meta(NameSlugModel.Meta):
         verbose_name = 'Жанр'
         verbose_name_plural = 'Жанры'
+        default_related_name = 'titles'
 
 
 class Title(models.Model):
@@ -97,7 +99,7 @@ class Title(models.Model):
     year = models.IntegerField(
         'Год выпуска',
         validators=(
-                MaxValueValidator(lambda: date.today().year),
+            MaxValueValidator(lambda: date.today().year),
         ),
     )
     description = models.TextField(
@@ -110,7 +112,6 @@ class Title(models.Model):
         null=True,
         blank=True,
         verbose_name='Категория',
-        related_name='titles',
     )
     genre = models.ManyToManyField(
         Genre,
@@ -120,7 +121,6 @@ class Title(models.Model):
     class Meta:
         verbose_name = 'Произведение'
         verbose_name_plural = 'Произведения'
-        ordering = ('-year', 'name')
 
     def __str__(self):
         return self.name

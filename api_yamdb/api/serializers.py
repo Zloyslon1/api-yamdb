@@ -66,55 +66,33 @@ class TokenSerializer(serializers.Serializer):
     confirmation_code = serializers.CharField()
 
 
-class CategorySerializer(serializers.ModelSerializer):
-    """Сериализатор категории.
-
-    Используется для list/create/destroy. Поля name и slug.
-    """
+class NameSlugSerializer(serializers.ModelSerializer):
+    """Базовый сериализатор для моделей с name и slug."""
 
     class Meta:
+        fields = ('name', 'slug')
+
+
+class CategorySerializer(NameSlugSerializer):
+    """Сериализатор категории."""
+
+    class Meta(NameSlugSerializer.Meta):
         model = Category
-        fields = ('name', 'slug')
 
 
-class GenreSerializer(serializers.ModelSerializer):
-    """Сериализатор жанра.
+class GenreSerializer(NameSlugSerializer):
+    """Сериализатор жанра."""
 
-    Используется для list/create/destroy. Поля name и slug.
-    """
-
-    class Meta:
+    class Meta(NameSlugSerializer.Meta):
         model = Genre
-        fields = ('name', 'slug')
 
 
-class TitleReadSerializer(serializers.ModelSerializer):
-    """Сериализатор для GET-запросов к произведениям.
+class TitleSerializer(serializers.ModelSerializer):
+    """Сериализатор произведения.
 
+    Принимает category и genre по slug.
     Возвращает вложенные объекты категории и жанров,
     а также аннотированный рейтинг.
-    """
-
-    category = CategorySerializer()
-    genre = GenreSerializer(many=True)
-    rating = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Title
-        fields = (
-            'id', 'name', 'year', 'rating', 'description', 'genre', 'category'
-        )
-
-    def get_rating(self, obj):
-        """Вернуть аннотированный рейтинг или None."""
-        return getattr(obj, 'rating', None)
-
-
-class TitleWriteSerializer(serializers.ModelSerializer):
-    """Сериализатор для POST/PATCH-запросов к произведениям.
-
-    Принимает category и genre по slug. При успехе возвращает
-    полный объект, включая id.
     """
 
     category = serializers.SlugRelatedField(
@@ -126,11 +104,24 @@ class TitleWriteSerializer(serializers.ModelSerializer):
         queryset=Genre.objects.all(),
         many=True,
     )
+    rating = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Title
-        fields = ('id', 'name', 'year', 'description', 'genre', 'category')
-        read_only_fields = ('id',)
+        fields = (
+            'id', 'name', 'year', 'rating', 'description', 'genre', 'category'
+        )
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['category'] = (
+            CategorySerializer(instance.category).data
+            if instance.category else None
+        )
+        rep['genre'] = GenreSerializer(
+            instance.genre.all(), many=True
+        ).data
+        return rep
 
 
 class ReviewSerializer(serializers.ModelSerializer):
