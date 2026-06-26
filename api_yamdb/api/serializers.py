@@ -1,17 +1,12 @@
-from django.contrib.auth.validators import UnicodeUsernameValidator
 from rest_framework import serializers
 
+from reviews.constants import (
+    CONFIRMATION_CODE_MAX_LENGTH,
+    EMAIL_MAX_LENGTH,
+    USERNAME_MAX_LENGTH,
+)
 from reviews.models import Category, Comment, Genre, Review, Title, User
-
-USERNAME_MAX_LENGTH = 150
-EMAIL_MAX_LENGTH = 254
-
-
-def validate_username_not_me(value):
-    if value == 'me':
-        raise serializers.ValidationError(
-            "Использовать 'me' в качестве username запрещено."
-        )
+from reviews.validators import validate_username
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -27,10 +22,6 @@ class UserSerializer(serializers.ModelSerializer):
             'role',
         )
 
-    def validate_username(self, value):
-        validate_username_not_me(value)
-        return value
-
 
 class MeSerializer(UserSerializer):
 
@@ -41,29 +32,24 @@ class MeSerializer(UserSerializer):
 class SignUpSerializer(serializers.Serializer):
     username = serializers.CharField(
         max_length=USERNAME_MAX_LENGTH,
-        validators=(UnicodeUsernameValidator(), validate_username_not_me),
+        required=True,
+        validators=(validate_username,),
     )
-    email = serializers.EmailField(max_length=EMAIL_MAX_LENGTH)
-
-    def validate(self, data):
-        username = data['username']
-        email = data['email']
-        if User.objects.filter(
-                username=username).exclude(email=email).exists():
-            raise serializers.ValidationError(
-                {'username': 'Пользователь с таким username уже есть.'}
-            )
-        if User.objects.filter(
-                email=email).exclude(username=username).exists():
-            raise serializers.ValidationError(
-                {'email': 'Пользователь с такой почтой уже есть.'}
-            )
-        return data
+    email = serializers.EmailField(
+        max_length=EMAIL_MAX_LENGTH,
+        required=True,
+    )
 
 
 class TokenSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    confirmation_code = serializers.CharField()
+    username = serializers.CharField(
+        max_length=USERNAME_MAX_LENGTH,
+        required=True,
+    )
+    confirmation_code = serializers.CharField(
+        max_length=CONFIRMATION_CODE_MAX_LENGTH,
+        required=True,
+    )
 
 
 class CategorySerializer(serializers.ModelSerializer):
