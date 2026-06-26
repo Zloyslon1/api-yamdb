@@ -37,7 +37,7 @@ class User(AbstractUser):
         default=USER,
     )
     bio = models.TextField(
-        'Биография',
+        'О себе',
         blank=True,
     )
 
