@@ -50,7 +50,7 @@ class NameSlugModel(models.Model):
     """Абстрактная модель с полями name и slug."""
 
     name = models.CharField('Название', max_length=256)
-    slug = models.SlugField('Slug', max_length=50, unique=True)
+    slug = models.SlugField('Слаг', max_length=50, unique=True)
 
     class Meta:
         abstract = True
