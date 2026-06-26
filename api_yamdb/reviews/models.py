@@ -4,6 +4,9 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
+from reviews.constants import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
+from reviews.validators import validate_username
+
 
 class User(AbstractUser):
 
@@ -16,9 +19,15 @@ class User(AbstractUser):
         (ADMIN, 'Администратор'),
     )
 
+    username = models.CharField(
+        'Имя пользователя',
+        max_length=USERNAME_MAX_LENGTH,
+        unique=True,
+        validators=(validate_username,),
+    )
     email = models.EmailField(
         'Электронная почта',
-        max_length=254,
+        max_length=EMAIL_MAX_LENGTH,
         unique=True,
     )
     role = models.CharField(
@@ -39,7 +48,11 @@ class User(AbstractUser):
 
     @property
     def is_admin(self):
-        return self.role == self.ADMIN or self.is_superuser
+        return (
+            self.role == self.ADMIN
+            or self.is_staff
+            or self.is_superuser
+        )
 
     @property
     def is_moderator(self):

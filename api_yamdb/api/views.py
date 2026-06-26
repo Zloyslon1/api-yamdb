@@ -1,9 +1,11 @@
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
+from django.db import IntegrityError
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
@@ -24,6 +26,7 @@ from .serializers import (
     TitleReadSerializer,
     TitleWriteSerializer,
 )
+from reviews.constants import FORBIDDEN_USERNAME
 from reviews.models import Category, Genre, Review, Title, User
 
 EMAIL_SUBJECT = 'Код подтверждения YaMDb'
@@ -44,17 +47,17 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=('get', 'patch'),
+        url_path=FORBIDDEN_USERNAME,
         permission_classes=(IsAuthenticated,),
     )
     def me(self, request):
-        if request.method == 'PATCH':
-            serializer = MeSerializer(
-                request.user, data=request.data, partial=True
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-            return Response(serializer.data)
-        serializer = MeSerializer(request.user)
+        if request.method == 'GET':
+            return Response(MeSerializer(request.user).data)
+        serializer = MeSerializer(
+            request.user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
         return Response(serializer.data)
 
 
@@ -63,7 +66,10 @@ class UserViewSet(viewsets.ModelViewSet):
 def signup(request):
     serializer = SignUpSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
-    user, _ = User.objects.get_or_create(**serializer.validated_data)
+    try:
+        user, _ = User.objects.get_or_create(**serializer.validated_data)
+    except IntegrityError:
+        raise ValidationError('Username или email уже заняты.')
     confirmation_code = default_token_generator.make_token(user)
     send_mail(
         subject=EMAIL_SUBJECT,
@@ -84,12 +90,11 @@ def token(request):
     )
     code = serializer.validated_data['confirmation_code']
     if not default_token_generator.check_token(user, code):
-        return Response(
-            {'confirmation_code': 'Неверный код подтверждения.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-    access = AccessToken.for_user(user)
-    return Response({'token': str(access)}, status=status.HTTP_200_OK)
+        raise ValidationError('Неверный код подтверждения.')
+    return Response(
+        {'token': str(AccessToken.for_user(user))},
+        status=status.HTTP_200_OK,
+    )
 
 
 class NameSlugViewSet(mixins.ListModelMixin,
