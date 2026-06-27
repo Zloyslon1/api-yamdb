@@ -1,18 +1,18 @@
 from datetime import date
 
-from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 
-from reviews.constants import FORBIDDEN_USERNAME
+from reviews.constants import ME_URL_PATH
 
-validate_username_pattern = UnicodeUsernameValidator()
+validate_username_pattern = RegexValidator(regex=r'^[\w.@+-]+\Z')
 
 
 def validate_username(username):
-    """Проверка username: запрет имени-заглушки и паттерн из ТЗ."""
-    if username == FORBIDDEN_USERNAME:
+    """Проверка username: запрет служебного имени и паттерн из ТЗ."""
+    if username == ME_URL_PATH:
         raise ValidationError(
-            f'Имя {FORBIDDEN_USERNAME} использовать как username нельзя.'
+            f'Имя {ME_URL_PATH} использовать как username нельзя.'
         )
     validate_username_pattern(username)
 
