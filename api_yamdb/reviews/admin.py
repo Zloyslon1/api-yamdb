@@ -1,12 +1,12 @@
 from django.contrib import admin
-from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 from reviews.models import Category, Comment, Genre, Review, Title, User
 
 
 @admin.register(User)
-class CustomUserAdmin(UserAdmin):
-    """Админка кастомного пользователя с полями role и bio."""
+class UserAdmin(BaseUserAdmin):
+    """Админка пользователя с полями role и bio."""
 
     list_display = (
         'pk',
@@ -17,7 +17,7 @@ class CustomUserAdmin(UserAdmin):
     )
     list_filter = ('role',)
     search_fields = ('username', 'email')
-    fieldsets = UserAdmin.fieldsets + (
+    fieldsets = BaseUserAdmin.fieldsets + (
         ('Дополнительно', {'fields': ('role', 'bio')}),
     )
 

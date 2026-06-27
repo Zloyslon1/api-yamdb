@@ -1,17 +1,12 @@
-from django.contrib.auth.validators import UnicodeUsernameValidator
 from rest_framework import serializers
 
+from reviews.constants import (
+    CONFIRMATION_CODE_MAX_LENGTH,
+    EMAIL_MAX_LENGTH,
+    USERNAME_MAX_LENGTH,
+)
 from reviews.models import Category, Comment, Genre, Review, Title, User
-
-USERNAME_MAX_LENGTH = 150
-EMAIL_MAX_LENGTH = 254
-
-
-def validate_username_not_me(value):
-    if value == 'me':
-        raise serializers.ValidationError(
-            "Использовать 'me' в качестве username запрещено."
-        )
+from reviews.validators import validate_username
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -27,10 +22,6 @@ class UserSerializer(serializers.ModelSerializer):
             'role',
         )
 
-    def validate_username(self, value):
-        validate_username_not_me(value)
-        return value
-
 
 class MeSerializer(UserSerializer):
 
@@ -41,80 +32,53 @@ class MeSerializer(UserSerializer):
 class SignUpSerializer(serializers.Serializer):
     username = serializers.CharField(
         max_length=USERNAME_MAX_LENGTH,
-        validators=(UnicodeUsernameValidator(), validate_username_not_me),
+        required=True,
+        validators=(validate_username,),
     )
-    email = serializers.EmailField(max_length=EMAIL_MAX_LENGTH)
-
-    def validate(self, data):
-        username = data['username']
-        email = data['email']
-        if User.objects.filter(
-                username=username).exclude(email=email).exists():
-            raise serializers.ValidationError(
-                {'username': 'Пользователь с таким username уже есть.'}
-            )
-        if User.objects.filter(
-                email=email).exclude(username=username).exists():
-            raise serializers.ValidationError(
-                {'email': 'Пользователь с такой почтой уже есть.'}
-            )
-        return data
+    email = serializers.EmailField(
+        max_length=EMAIL_MAX_LENGTH,
+        required=True,
+    )
 
 
 class TokenSerializer(serializers.Serializer):
-    username = serializers.CharField()
-    confirmation_code = serializers.CharField()
+    username = serializers.CharField(
+        max_length=USERNAME_MAX_LENGTH,
+        required=True,
+    )
+    confirmation_code = serializers.CharField(
+        max_length=CONFIRMATION_CODE_MAX_LENGTH,
+        required=True,
+    )
 
 
-class CategorySerializer(serializers.ModelSerializer):
-    """Сериализатор категории.
-
-    Используется для list/create/destroy. Поля name и slug.
-    """
+class NameSlugSerializer(serializers.ModelSerializer):
+    """Базовый сериализатор для моделей с name и slug."""
 
     class Meta:
+        fields = ('name', 'slug')
+
+
+class CategorySerializer(NameSlugSerializer):
+    """Сериализатор категории."""
+
+    class Meta(NameSlugSerializer.Meta):
         model = Category
-        fields = ('name', 'slug')
 
 
-class GenreSerializer(serializers.ModelSerializer):
-    """Сериализатор жанра.
+class GenreSerializer(NameSlugSerializer):
+    """Сериализатор жанра."""
 
-    Используется для list/create/destroy. Поля name и slug.
-    """
-
-    class Meta:
+    class Meta(NameSlugSerializer.Meta):
         model = Genre
-        fields = ('name', 'slug')
 
 
-class TitleReadSerializer(serializers.ModelSerializer):
-    """Сериализатор для GET-запросов к произведениям.
+class TitleSerializer(serializers.ModelSerializer):
+    """Сериализатор произведения.
 
+    Принимает category и genre по slug.
     Возвращает вложенные объекты категории и жанров,
     а также аннотированный рейтинг.
-    """
-
-    category = CategorySerializer()
-    genre = GenreSerializer(many=True)
-    rating = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Title
-        fields = (
-            'id', 'name', 'year', 'rating', 'description', 'genre', 'category'
-        )
-
-    def get_rating(self, obj):
-        """Вернуть аннотированный рейтинг или None."""
-        return getattr(obj, 'rating', None)
-
-
-class TitleWriteSerializer(serializers.ModelSerializer):
-    """Сериализатор для POST/PATCH-запросов к произведениям.
-
-    Принимает category и genre по slug. При успехе возвращает
-    полный объект, включая id.
     """
 
     category = serializers.SlugRelatedField(
@@ -126,11 +90,24 @@ class TitleWriteSerializer(serializers.ModelSerializer):
         queryset=Genre.objects.all(),
         many=True,
     )
+    rating = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Title
-        fields = ('id', 'name', 'year', 'description', 'genre', 'category')
-        read_only_fields = ('id',)
+        fields = (
+            'id', 'name', 'year', 'rating', 'description', 'genre', 'category'
+        )
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['category'] = (
+            CategorySerializer(instance.category).data
+            if instance.category else None
+        )
+        rep['genre'] = GenreSerializer(
+            instance.genre.all(), many=True
+        ).data
+        return rep
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -153,8 +130,10 @@ class ReviewSerializer(serializers.ModelSerializer):
         title_id = self.context['view'].kwargs['title_id']
         if Review.objects.filter(
                 title_id=title_id, author=request.user).exists():
+            title = Title.objects.get(pk=title_id)
             raise serializers.ValidationError(
-                'Можно оставить только один отзыв на произведение.'
+                f'{request.user.username} уже оставил отзыв '
+                f'на произведение «{title.name}».'
             )
         return data
 
