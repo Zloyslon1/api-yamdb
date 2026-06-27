@@ -1,11 +1,16 @@
-from datetime import date
-
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from reviews.constants import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
-from reviews.validators import validate_username
+from reviews.constants import (
+    CONFIRMATION_CODE_MAX_LENGTH,
+    EMAIL_MAX_LENGTH,
+    MAX_SCORE,
+    MIN_SCORE,
+    TEXT_PREVIEW_LENGTH,
+    USERNAME_MAX_LENGTH,
+)
+from reviews.validators import current_year, validate_username
 
 
 class User(AbstractUser):
@@ -38,6 +43,11 @@ class User(AbstractUser):
     )
     bio = models.TextField(
         'О себе',
+        blank=True,
+    )
+    confirmation_code = models.CharField(
+        'Код подтверждения',
+        max_length=CONFIRMATION_CODE_MAX_LENGTH,
         blank=True,
     )
 
@@ -82,7 +92,6 @@ class Category(NameSlugModel):
     class Meta(NameSlugModel.Meta):
         verbose_name = 'Категория'
         verbose_name_plural = 'Категории'
-        default_related_name = 'titles'
 
 
 class Genre(NameSlugModel):
@@ -94,7 +103,6 @@ class Genre(NameSlugModel):
     class Meta(NameSlugModel.Meta):
         verbose_name = 'Жанр'
         verbose_name_plural = 'Жанры'
-        default_related_name = 'titles'
 
 
 class Title(models.Model):
@@ -112,7 +120,7 @@ class Title(models.Model):
     year = models.IntegerField(
         'Год выпуска',
         validators=(
-            MaxValueValidator(lambda: date.today().year),
+            MaxValueValidator(current_year),
         ),
     )
     description = models.TextField(
@@ -134,43 +142,54 @@ class Title(models.Model):
     class Meta:
         verbose_name = 'Произведение'
         verbose_name_plural = 'Произведения'
+        default_related_name = 'titles'
 
     def __str__(self):
         return self.name
 
 
-class Review(models.Model):
-    """Отзыв пользователя на произведение (с оценкой 1..10)."""
+class BaseReviewComment(models.Model):
+    """Абстрактная база для отзывов и комментариев."""
 
-    title = models.ForeignKey(
-        Title,
-        on_delete=models.CASCADE,
-        related_name='reviews',
-        verbose_name='Произведение',
-    )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='reviews',
         verbose_name='Автор',
     )
-    text = models.TextField('Текст отзыва')
-    score = models.PositiveSmallIntegerField(
-        'Оценка',
-        validators=(
-            MinValueValidator(1),
-            MaxValueValidator(10),
-        ),
-    )
+    text = models.TextField('Текст')
     pub_date = models.DateTimeField(
         'Дата публикации',
         auto_now_add=True,
     )
 
     class Meta:
+        abstract = True
+        ordering = ('-pub_date',)
+
+    def __str__(self):
+        return self.text[:TEXT_PREVIEW_LENGTH]
+
+
+class Review(BaseReviewComment):
+    """Отзыв пользователя на произведение с оценкой."""
+
+    title = models.ForeignKey(
+        Title,
+        on_delete=models.CASCADE,
+        verbose_name='Произведение',
+    )
+    score = models.PositiveSmallIntegerField(
+        'Оценка',
+        validators=(
+            MinValueValidator(MIN_SCORE),
+            MaxValueValidator(MAX_SCORE),
+        ),
+    )
+
+    class Meta(BaseReviewComment.Meta):
         verbose_name = 'Отзыв'
         verbose_name_plural = 'Отзывы'
-        ordering = ('-pub_date',)
+        default_related_name = 'reviews'
         constraints = (
             models.UniqueConstraint(
                 fields=('title', 'author'),
@@ -178,35 +197,17 @@ class Review(models.Model):
             ),
         )
 
-    def __str__(self):
-        return self.text[:50]
 
-
-class Comment(models.Model):
+class Comment(BaseReviewComment):
     """Комментарий к отзыву."""
 
     review = models.ForeignKey(
         Review,
         on_delete=models.CASCADE,
-        related_name='comments',
         verbose_name='Отзыв',
     )
-    author = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='comments',
-        verbose_name='Автор',
-    )
-    text = models.TextField('Текст комментария')
-    pub_date = models.DateTimeField(
-        'Дата публикации',
-        auto_now_add=True,
-    )
 
-    class Meta:
+    class Meta(BaseReviewComment.Meta):
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
-        ordering = ('-pub_date',)
-
-    def __str__(self):
-        return self.text[:50]
+        default_related_name = 'comments'
