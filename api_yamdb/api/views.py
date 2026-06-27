@@ -1,8 +1,6 @@
-import string
-
 from django.core.mail import send_mail
 from django.db import IntegrityError
-from django.db.models import Avg
+from django.db.models import Avg, Q
 from django.shortcuts import get_object_or_404
 from django.utils.crypto import get_random_string
 from django_filters.rest_framework import DjangoFilterBackend
@@ -16,9 +14,9 @@ from rest_framework_simplejwt.tokens import AccessToken
 from api.filters import TitleFilter
 from api.permissions import IsAdmin
 from api.serializers import (
+    GetTokenSerializer,
     MeSerializer,
     SignUpSerializer,
-    TokenSerializer,
     UserSerializer,
 )
 from .permissions import IsAdminOrReadOnly, IsAuthorOrModeratorOrAdmin
@@ -29,7 +27,11 @@ from .serializers import (
     ReviewSerializer,
     TitleSerializer,
 )
-from reviews.constants import CONFIRMATION_CODE_LENGTH, FORBIDDEN_USERNAME
+from reviews.constants import (
+    CONFIRMATION_CODE_ALPHABET,
+    CONFIRMATION_CODE_LENGTH,
+    ME_URL_PATH,
+)
 from reviews.models import Category, Genre, Review, Title, User
 
 EMAIL_SUBJECT = 'Код подтверждения YaMDb'
@@ -50,12 +52,12 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=('get', 'patch'),
-        url_path=FORBIDDEN_USERNAME,
+        url_path=ME_URL_PATH,
         permission_classes=(IsAuthenticated,),
     )
     def me(self, request):
         if request.method == 'GET':
-            return Response(MeSerializer(request.user).data)
+            return Response(UserSerializer(request.user).data)
         serializer = MeSerializer(
             request.user, data=request.data, partial=True
         )
@@ -69,12 +71,21 @@ class UserViewSet(viewsets.ModelViewSet):
 def signup(request):
     serializer = SignUpSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
+    username = serializer.validated_data['username']
+    email = serializer.validated_data['email']
     try:
-        user, _ = User.objects.get_or_create(**serializer.validated_data)
+        user, _ = User.objects.get_or_create(username=username, email=email)
     except IntegrityError:
-        raise ValidationError('Username или email уже заняты.')
+        errors = {}
+        for existing in User.objects.filter(
+                Q(username=username) | Q(email=email)):
+            if existing.username == username:
+                errors['username'] = 'Этот username уже занят.'
+            if existing.email == email:
+                errors['email'] = 'Эта почта уже занята.'
+        raise ValidationError(errors)
     user.confirmation_code = get_random_string(
-        CONFIRMATION_CODE_LENGTH, string.digits
+        CONFIRMATION_CODE_LENGTH, CONFIRMATION_CODE_ALPHABET
     )
     user.save(update_fields=('confirmation_code',))
     send_mail(
@@ -89,14 +100,18 @@ def signup(request):
 @api_view(('POST',))
 @permission_classes((AllowAny,))
 def token(request):
-    serializer = TokenSerializer(data=request.data)
+    serializer = GetTokenSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = get_object_or_404(
         User, username=serializer.validated_data['username']
     )
     code = serializer.validated_data['confirmation_code']
     if not user.confirmation_code or user.confirmation_code != code:
-        raise ValidationError('Неверный код подтверждения.')
+        user.confirmation_code = ''
+        user.save(update_fields=('confirmation_code',))
+        raise ValidationError('Неверный код подтверждения. Запросите новый.')
+    user.confirmation_code = ''
+    user.save(update_fields=('confirmation_code',))
     return Response(
         {'token': str(AccessToken.for_user(user))},
         status=status.HTTP_200_OK,

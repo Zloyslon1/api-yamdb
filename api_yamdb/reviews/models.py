@@ -25,7 +25,7 @@ class User(AbstractUser):
     )
 
     username = models.CharField(
-        'Имя пользователя',
+        'Никнейм',
         max_length=USERNAME_MAX_LENGTH,
         unique=True,
         validators=(validate_username,),
@@ -58,11 +58,7 @@ class User(AbstractUser):
 
     @property
     def is_admin(self):
-        return (
-            self.role == self.ADMIN
-            or self.is_staff
-            or self.is_superuser
-        )
+        return self.role == self.ADMIN or self.is_staff
 
     @property
     def is_moderator(self):
