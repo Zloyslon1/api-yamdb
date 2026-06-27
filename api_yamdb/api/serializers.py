@@ -73,13 +73,22 @@ class GenreSerializer(NameSlugSerializer):
         model = Genre
 
 
-class TitleSerializer(serializers.ModelSerializer):
-    """Сериализатор произведения.
+class TitleReadSerializer(serializers.ModelSerializer):
+    """Читающий сериализатор: вложенные объекты категории и жанров."""
 
-    Принимает category и genre по slug.
-    Возвращает вложенные объекты категории и жанров,
-    а также аннотированный рейтинг.
-    """
+    category = CategorySerializer()
+    genre = GenreSerializer(many=True)
+    rating = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Title
+        fields = (
+            'id', 'name', 'year', 'rating', 'description', 'genre', 'category'
+        )
+
+
+class TitleWriteSerializer(serializers.ModelSerializer):
+    """Изменяющий сериализатор: slug на вход, вложенные объекты на выход."""
 
     category = serializers.SlugRelatedField(
         slug_field='slug',
@@ -90,24 +99,13 @@ class TitleSerializer(serializers.ModelSerializer):
         queryset=Genre.objects.all(),
         many=True,
     )
-    rating = serializers.FloatField(read_only=True)
 
     class Meta:
         model = Title
-        fields = (
-            'id', 'name', 'year', 'rating', 'description', 'genre', 'category'
-        )
+        fields = ('name', 'year', 'description', 'genre', 'category')
 
     def to_representation(self, instance):
-        rep = super().to_representation(instance)
-        rep['category'] = (
-            CategorySerializer(instance.category).data
-            if instance.category else None
-        )
-        rep['genre'] = GenreSerializer(
-            instance.genre.all(), many=True
-        ).data
-        return rep
+        return TitleReadSerializer(instance).data
 
 
 class ReviewSerializer(serializers.ModelSerializer):

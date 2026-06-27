@@ -25,7 +25,8 @@ from .serializers import (
     CommentSerializer,
     GenreSerializer,
     ReviewSerializer,
-    TitleSerializer,
+    TitleReadSerializer,
+    TitleWriteSerializer,
 )
 from reviews.constants import (
     CONFIRMATION_CODE_ALPHABET,
@@ -151,13 +152,15 @@ class TitleViewSet(viewsets.ModelViewSet):
     """ViewSet для произведений (read-write)."""
 
     queryset = Title.objects.annotate(rating=Avg('reviews__score')).distinct()
-    serializer_class = TitleSerializer
     permission_classes = (IsAdminOrReadOnly,)
     http_method_names = ('get', 'post', 'patch', 'delete')
     filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
     filterset_class = TitleFilter
-    ordering = ('-year', 'name')
-    ordering_fields = ('year', 'name')
+
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return TitleReadSerializer
+        return TitleWriteSerializer
 
 
 class ReviewViewSet(viewsets.ModelViewSet):

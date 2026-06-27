@@ -7,10 +7,13 @@ from reviews.constants import (
     EMAIL_MAX_LENGTH,
     MAX_SCORE,
     MIN_SCORE,
+    NAME_MAX_LENGTH,
+    SLUG_MAX_LENGTH,
     TEXT_PREVIEW_LENGTH,
     USERNAME_MAX_LENGTH,
+    current_year,
 )
-from reviews.validators import current_year, validate_username
+from reviews.validators import validate_username
 
 
 class User(AbstractUser):
@@ -68,8 +71,8 @@ class User(AbstractUser):
 class NameSlugModel(models.Model):
     """Абстрактная модель с полями name и slug."""
 
-    name = models.CharField('Название', max_length=256)
-    slug = models.SlugField('Слаг', max_length=50, unique=True)
+    name = models.CharField('Название', max_length=NAME_MAX_LENGTH)
+    slug = models.SlugField('Слаг', max_length=SLUG_MAX_LENGTH, unique=True)
 
     class Meta:
         abstract = True
@@ -111,7 +114,7 @@ class Title(models.Model):
 
     name = models.CharField(
         'Название',
-        max_length=256,
+        max_length=NAME_MAX_LENGTH,
     )
     year = models.IntegerField(
         'Год выпуска',

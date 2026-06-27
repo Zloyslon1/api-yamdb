@@ -2,7 +2,7 @@
 
 import django.core.validators
 import django.db.models.deletion
-import reviews.validators
+import reviews.constants
 from django.conf import settings
 from django.db import migrations, models
 
@@ -79,7 +79,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='title',
             name='year',
-            field=models.IntegerField(validators=[django.core.validators.MaxValueValidator(reviews.validators.current_year)], verbose_name='Год выпуска'),
+            field=models.IntegerField(validators=[django.core.validators.MaxValueValidator(reviews.constants.current_year)], verbose_name='Год выпуска'),
         ),
         migrations.AlterField(
             model_name='user',
