@@ -1,6 +1,6 @@
 from django.core.mail import send_mail
 from django.db import IntegrityError
-from django.db.models import Avg, Q
+from django.db.models import Avg, Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils.crypto import get_random_string
 from django_filters.rest_framework import DjangoFilterBackend
@@ -78,13 +78,17 @@ def signup(request):
     try:
         user, _ = User.objects.get_or_create(username=username, email=email)
     except IntegrityError:
+        counts = User.objects.filter(
+            Q(username=username) | Q(email=email)
+        ).aggregate(
+            username_taken=Count('pk', filter=Q(username=username)),
+            email_taken=Count('pk', filter=Q(email=email)),
+        )
         errors = {}
-        for existing in User.objects.filter(
-                Q(username=username) | Q(email=email)):
-            if existing.username == username:
-                errors['username'] = 'Этот username уже занят.'
-            if existing.email == email:
-                errors['email'] = 'Эта почта уже занята.'
+        if counts['username_taken']:
+            errors['username'] = 'Этот username уже занят.'
+        if counts['email_taken']:
+            errors['email'] = 'Эта почта уже занята.'
         raise ValidationError(errors)
     user.confirmation_code = get_random_string(
         CONFIRMATION_CODE_LENGTH, CONFIRMATION_CODE_ALPHABET
@@ -112,8 +116,6 @@ def token(request):
         user.confirmation_code = ''
         user.save(update_fields=('confirmation_code',))
         raise ValidationError('Неверный код подтверждения. Запросите новый.')
-    user.confirmation_code = ''
-    user.save(update_fields=('confirmation_code',))
     return Response(
         {'token': str(AccessToken.for_user(user))},
         status=status.HTTP_200_OK,
@@ -152,15 +154,12 @@ class GenreViewSet(NameSlugViewSet):
 class TitleViewSet(viewsets.ModelViewSet):
     """ViewSet для произведений (read-write)."""
 
-    queryset = (
-        Title.objects
-        .annotate(rating=Avg('reviews__score'))
-        .order_by('-year', 'name')
-    )
+    queryset = Title.objects.annotate(rating=Avg('reviews__score')).distinct()
     permission_classes = (IsAdminOrReadOnly,)
     http_method_names = ('get', 'post', 'patch', 'delete')
-    filter_backends = (DjangoFilterBackend,)
+    filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
     filterset_class = TitleFilter
+    ordering = Title._meta.ordering
 
     def get_serializer_class(self):
         if self.request.method == 'GET':
