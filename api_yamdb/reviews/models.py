@@ -7,10 +7,13 @@ from reviews.constants import (
     EMAIL_MAX_LENGTH,
     MAX_SCORE,
     MIN_SCORE,
+    NAME_MAX_LENGTH,
+    SLUG_MAX_LENGTH,
     TEXT_PREVIEW_LENGTH,
     USERNAME_MAX_LENGTH,
+    current_year,
 )
-from reviews.validators import current_year, validate_username
+from reviews.validators import validate_username
 
 
 class User(AbstractUser):
@@ -25,7 +28,7 @@ class User(AbstractUser):
     )
 
     username = models.CharField(
-        'Имя пользователя',
+        'Никнейм',
         max_length=USERNAME_MAX_LENGTH,
         unique=True,
         validators=(validate_username,),
@@ -58,11 +61,7 @@ class User(AbstractUser):
 
     @property
     def is_admin(self):
-        return (
-            self.role == self.ADMIN
-            or self.is_staff
-            or self.is_superuser
-        )
+        return self.role == self.ADMIN or self.is_staff
 
     @property
     def is_moderator(self):
@@ -72,8 +71,8 @@ class User(AbstractUser):
 class NameSlugModel(models.Model):
     """Абстрактная модель с полями name и slug."""
 
-    name = models.CharField('Название', max_length=256)
-    slug = models.SlugField('Слаг', max_length=50, unique=True)
+    name = models.CharField('Название', max_length=NAME_MAX_LENGTH)
+    slug = models.SlugField('Слаг', max_length=SLUG_MAX_LENGTH, unique=True)
 
     class Meta:
         abstract = True
@@ -115,7 +114,7 @@ class Title(models.Model):
 
     name = models.CharField(
         'Название',
-        max_length=256,
+        max_length=NAME_MAX_LENGTH,
     )
     year = models.IntegerField(
         'Год выпуска',
@@ -149,7 +148,7 @@ class Title(models.Model):
 
 
 class BaseReviewComment(models.Model):
-    """Абстрактная база для отзывов и комментариев."""
+    """Абстрактная база с автором, текстом и датой публикации."""
 
     author = models.ForeignKey(
         User,
@@ -165,6 +164,7 @@ class BaseReviewComment(models.Model):
     class Meta:
         abstract = True
         ordering = ('-pub_date',)
+        default_related_name = '%(model_name)ss'
 
     def __str__(self):
         return self.text[:TEXT_PREVIEW_LENGTH]
@@ -189,7 +189,6 @@ class Review(BaseReviewComment):
     class Meta(BaseReviewComment.Meta):
         verbose_name = 'Отзыв'
         verbose_name_plural = 'Отзывы'
-        default_related_name = 'reviews'
         constraints = (
             models.UniqueConstraint(
                 fields=('title', 'author'),
@@ -210,4 +209,3 @@ class Comment(BaseReviewComment):
     class Meta(BaseReviewComment.Meta):
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
-        default_related_name = 'comments'
