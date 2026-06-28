@@ -1,5 +1,6 @@
 import string
 from datetime import date
+from django.core.validators import RegexValidator
 
 USERNAME_MAX_LENGTH = 150
 EMAIL_MAX_LENGTH = 254
@@ -14,6 +15,7 @@ TEXT_PREVIEW_LENGTH = 50
 SLUG_MAX_LENGTH = 50
 NAME_MAX_LENGTH = 256
 
+VALIDATE_USERNAME_PATTERN = RegexValidator(regex=r'^[\w.@+-]+\Z')
 
 def current_year():
     """Текущий год для ограничения поля year."""

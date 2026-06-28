@@ -20,8 +20,8 @@ from .permissions import (
 from .serializers import (
     CategorySerializer,
     CommentSerializer,
+    ConfirmationCodeSerializer,
     GenreSerializer,
-    GetTokenSerializer,
     MeSerializer,
     ReviewSerializer,
     SignUpSerializer,
@@ -57,7 +57,7 @@ class UserViewSet(viewsets.ModelViewSet):
         url_path=ME_URL_PATH,
         permission_classes=(IsAuthenticated,),
     )
-    def me(self, request):
+    def profile(self, request):
         if request.method == 'GET':
             return Response(UserSerializer(request.user).data)
         serializer = MeSerializer(
@@ -102,7 +102,7 @@ def signup(request):
 @api_view(('POST',))
 @permission_classes((AllowAny,))
 def token(request):
-    serializer = GetTokenSerializer(data=request.data)
+    serializer = ConfirmationCodeSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     user = get_object_or_404(
         User, username=serializer.validated_data['username']

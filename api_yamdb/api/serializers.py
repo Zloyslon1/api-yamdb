@@ -9,7 +9,14 @@ from reviews.models import Category, Comment, Genre, Review, Title, User
 from reviews.validators import validate_username
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UsernameValidationMixin:
+    """Проверяет поле username общим валидатором."""
+    def validate_username(self, value):
+        validate_username(value)
+        return value
+
+
+class UserSerializer(UsernameValidationMixin, serializers.ModelSerializer):
 
     class Meta:
         model = User
@@ -41,7 +48,8 @@ class SignUpSerializer(serializers.Serializer):
     )
 
 
-class GetTokenSerializer(serializers.Serializer):
+class ConfirmationCodeSerializer(
+        UsernameValidationMixin, serializers.Serializer):
     username = serializers.CharField(
         max_length=USERNAME_MAX_LENGTH,
         required=True,
@@ -74,10 +82,14 @@ class GenreSerializer(NameSlugSerializer):
 
 
 class TitleReadSerializer(serializers.ModelSerializer):
-    """Читающий сериализатор: вложенные объекты категории и жанров."""
+    """Читающий сериализатор: вложенные объекты категории и жанров.
 
-    category = CategorySerializer()
-    genre = GenreSerializer(many=True)
+    Все поля только на чтение — сериализатор нельзя случайно
+    применить для изменяющих запросов и испортить данные.
+    """
+
+    category = CategorySerializer(read_only=True)
+    genre = GenreSerializer(many=True, read_only=True)
     rating = serializers.IntegerField(read_only=True)
 
     class Meta:
@@ -85,6 +97,7 @@ class TitleReadSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'name', 'year', 'rating', 'description', 'genre', 'category'
         )
+        read_only_fields = ('id', 'name', 'year', 'description')
 
 
 class TitleWriteSerializer(serializers.ModelSerializer):
