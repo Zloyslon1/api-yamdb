@@ -148,7 +148,7 @@ class Title(models.Model):
 
 
 class BaseReviewComment(models.Model):
-    """Абстрактная база для отзывов и комментариев."""
+    """Абстрактная база с автором, текстом и датой публикации."""
 
     author = models.ForeignKey(
         User,
@@ -164,6 +164,7 @@ class BaseReviewComment(models.Model):
     class Meta:
         abstract = True
         ordering = ('-pub_date',)
+        default_related_name = '%(model_name)ss'
 
     def __str__(self):
         return self.text[:TEXT_PREVIEW_LENGTH]
@@ -188,7 +189,6 @@ class Review(BaseReviewComment):
     class Meta(BaseReviewComment.Meta):
         verbose_name = 'Отзыв'
         verbose_name_plural = 'Отзывы'
-        default_related_name = 'reviews'
         constraints = (
             models.UniqueConstraint(
                 fields=('title', 'author'),
@@ -209,4 +209,3 @@ class Comment(BaseReviewComment):
     class Meta(BaseReviewComment.Meta):
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
-        default_related_name = 'comments'

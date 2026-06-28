@@ -11,22 +11,23 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
 
-from api.filters import TitleFilter
-from api.permissions import IsAdmin
-from api.serializers import (
-    GetTokenSerializer,
-    MeSerializer,
-    SignUpSerializer,
-    UserSerializer,
+from .filters import TitleFilter
+from .permissions import (
+    IsAdmin,
+    IsAdminOrReadOnly,
+    IsAuthorOrModeratorOrAdmin,
 )
-from .permissions import IsAdminOrReadOnly, IsAuthorOrModeratorOrAdmin
 from .serializers import (
     CategorySerializer,
     CommentSerializer,
     GenreSerializer,
+    GetTokenSerializer,
+    MeSerializer,
     ReviewSerializer,
+    SignUpSerializer,
     TitleReadSerializer,
     TitleWriteSerializer,
+    UserSerializer,
 )
 from reviews.constants import (
     CONFIRMATION_CODE_ALPHABET,
@@ -151,10 +152,14 @@ class GenreViewSet(NameSlugViewSet):
 class TitleViewSet(viewsets.ModelViewSet):
     """ViewSet для произведений (read-write)."""
 
-    queryset = Title.objects.annotate(rating=Avg('reviews__score')).distinct()
+    queryset = (
+        Title.objects
+        .annotate(rating=Avg('reviews__score'))
+        .order_by('-year', 'name')
+    )
     permission_classes = (IsAdminOrReadOnly,)
     http_method_names = ('get', 'post', 'patch', 'delete')
-    filter_backends = (DjangoFilterBackend, filters.OrderingFilter)
+    filter_backends = (DjangoFilterBackend,)
     filterset_class = TitleFilter
 
     def get_serializer_class(self):
