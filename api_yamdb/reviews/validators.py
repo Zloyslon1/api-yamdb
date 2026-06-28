@@ -1,4 +1,5 @@
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 
 from reviews.constants import RESERVED_USERNAMES, VALIDATE_USERNAME_PATTERN
 

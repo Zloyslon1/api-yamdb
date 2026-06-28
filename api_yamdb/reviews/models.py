@@ -13,6 +13,7 @@ from reviews.constants import (
     SLUG_MAX_LENGTH,
     TEXT_PREVIEW_LENGTH,
     USERNAME_MAX_LENGTH,
+    current_year,
 )
 from reviews.validators import validate_username
 
