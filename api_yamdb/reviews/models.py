@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -14,6 +16,11 @@ from reviews.constants import (
     current_year,
 )
 from reviews.validators import validate_username
+
+
+def current_year():
+    """Текущий год — верхняя граница года выпуска произведения."""
+    return date.today().year
 
 
 class User(AbstractUser):
@@ -142,6 +149,7 @@ class Title(models.Model):
         verbose_name = 'Произведение'
         verbose_name_plural = 'Произведения'
         default_related_name = 'titles'
+        ordering = ('-year', 'name')
 
     def __str__(self):
         return self.name
