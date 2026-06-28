@@ -32,7 +32,7 @@ from .serializers import (
 from reviews.constants import (
     CONFIRMATION_CODE_ALPHABET,
     CONFIRMATION_CODE_LENGTH,
-    ME_URL_PATH,
+    PROFILE_URL_PATH,
 )
 from reviews.models import Category, Genre, Review, Title, User
 
@@ -54,7 +54,7 @@ class UserViewSet(viewsets.ModelViewSet):
     @action(
         detail=False,
         methods=('get', 'patch'),
-        url_path=ME_URL_PATH,
+        url_path=PROFILE_URL_PATH,
         permission_classes=(IsAuthenticated,),
     )
     def profile(self, request):
