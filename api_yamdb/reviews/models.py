@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -11,9 +13,13 @@ from reviews.constants import (
     SLUG_MAX_LENGTH,
     TEXT_PREVIEW_LENGTH,
     USERNAME_MAX_LENGTH,
-    current_year,
 )
 from reviews.validators import validate_username
+
+
+def current_year():
+    """Текущий год — верхняя граница года выпуска произведения."""
+    return date.today().year
 
 
 class User(AbstractUser):
